@@ -1,0 +1,14 @@
+.git
+.env
+.localstack
+*.log
+*.exe
+*.test
+*.out
+vendor/
+dist/
+coverage/
+node_modules/
+interventionCreate
+interventionList
+interventionUpdate

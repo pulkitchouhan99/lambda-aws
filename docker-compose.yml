@@ -70,14 +70,34 @@ services:
       - "8081:8081"
     environment:
       - PORT=8081
-      - DATABASE_URL=host=postgres_write user=postgres password=postgres dbname=write_model port=5432 sslmode=disable
+      - WRITE_DB_HOST=postgres_write
+      - WRITE_DB_PORT=5432
+      - WRITE_DB_USER=postgres
+      - WRITE_DB_PASSWORD=postgres
+      - WRITE_DB_NAME=write_model
+      - WRITE_DB_SSLMODE=disable
+      - READ_DB_HOST=postgres_read
+      - READ_DB_PORT=5432
+      - READ_DB_USER=postgres
+      - READ_DB_PASSWORD=postgres
+      - READ_DB_NAME=read_model
+      - READ_DB_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - LOCALSTACK_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
       - JWT_SECRET=${JWT_SECRET:-local-secret-key}
     depends_on:
       postgres_write:
         condition: service_healthy
-      localstack:
+      postgres_read:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   subgraph-intervention:
@@ -88,11 +108,34 @@ services:
       - "8082:8082"
     environment:
       - PORT=8082
-      - DATABASE_URL=host=postgres_write user=postgres password=postgres dbname=write_model port=5432 sslmode=disable
+      - WRITE_DB_HOST=postgres_write
+      - WRITE_DB_PORT=5432
+      - WRITE_DB_USER=postgres
+      - WRITE_DB_PASSWORD=postgres
+      - WRITE_DB_NAME=write_model
+      - WRITE_DB_SSLMODE=disable
+      - READ_DB_HOST=postgres_read
+      - READ_DB_PORT=5432
+      - READ_DB_USER=postgres
+      - READ_DB_PASSWORD=postgres
+      - READ_DB_NAME=read_model
+      - READ_DB_SSLMODE=disable
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - LOCALSTACK_URL=http://localstack:4566
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET:-local-secret-key}
     depends_on:
       postgres_write:
         condition: service_healthy
-      localstack:
+      postgres_read:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
 volumes:
