@@ -1,0 +1,15 @@
+type Query {
+  screening(id: ID!): Screening
+  screenings: [Screening]
+}
+
+type Mutation {
+  submitScreening(patientId: ID!, answers: [String!]!): Screening
+}
+
+type Screening {
+  id: ID!
+  patientId: ID!
+  answers: [String!]!
+  score: Int
+}

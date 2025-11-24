@@ -1,0 +1,196 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Backend stack
+
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+    Runtime: go1.x
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        WRITE_DB_HOST: postgres_write
+        READ_DB_HOST: postgres_read
+        REDIS_HOST: redis
+        KINESIS_STREAM_NAME: cdc-stream
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+        COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+        JWT_SECRET: "a-very-secret-key" # Replace with a real secret
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !GetAtt CognitoUserPool.ProviderURL
+              audience:
+                - !Ref CognitoUserPoolClient
+        DefaultAuthorizer: CognitoAuthorizer
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: local-user-pool
+      Schema:
+        - Name: tenant_id
+          AttributeDataType: String
+          Mutable: true
+        - Name: role
+          AttributeDataType: String
+          Mutable: true
+        - Name: navigator_admin_id
+          AttributeDataType: String
+          Mutable: true
+        - Name: user_id
+          AttributeDataType: String
+          Mutable: true
+      LambdaConfig:
+        CreateAuthChallenge: !GetAtt CognitoCreateAuthChallengeFunction.Arn
+        DefineAuthChallenge: !GetAtt CognitoDefineAuthChallengeFunction.Arn
+        VerifyAuthChallengeResponse: !GetAtt CognitoVerifyAuthChallengeFunction.Arn
+        PreSignUp: !GetAtt CognitoPreSignUpFunction.Arn
+        PostConfirmation: !GetAtt CognitoPostConfirmationFunction.Arn
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - CUSTOM_AUTH_FLOW_ONLY
+
+  # Auth Lambdas
+  AuthInviteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authInvite/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/invite
+            Method: post
+            ApiId: !Ref ApiGateway
+  AuthValidateInviteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authValidateInvite/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/validateInvite
+            Method: get
+            ApiId: !Ref ApiGateway
+  AuthRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authRegister/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/register
+            Method: post
+            ApiId: !Ref ApiGateway
+  AuthSendOtpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authSendOtp/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/sendOtp
+            Method: post
+            ApiId: !Ref ApiGateway
+  AuthVerifyOtpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authVerifyOtp/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/verifyOtp
+            Method: post
+            ApiId: !Ref ApiGateway
+  AuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/authLogin/
+      Handler: main
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /auth/login
+            Method: post
+            ApiId: !Ref ApiGateway
+
+  # Cognito Triggers
+  CognitoCreateAuthChallengeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/cognitoCreateAuthChallenge/
+      Handler: main
+  CognitoDefineAuthChallengeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/cognitoDefineAuthChallenge/
+      Handler: main
+  CognitoVerifyAuthChallengeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/cognitoVerifyAuthChallenge/
+      Handler: main
+  CognitoPreSignUpFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/cognitoPreSignUp/
+      Handler: main
+  CognitoPostConfirmationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/cognitoPostConfirmation/
+      Handler: main
+  UserEventWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+        CodeUri: workers/userEventWorker/
+        Handler: main
+        Events:
+            SqsEvent:
+                Type: SQS
+                Properties:
+                    Queue: !GetAtt UserEventsQueue.Arn
+                    BatchSize: 10
+
+  UserEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+        QueueName: user-events
+        RedrivePolicy:
+            deadLetterTargetArn: !GetAtt UserEventsDlq.Arn
+            maxReceiveCount: 5
+  UserEventsDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+        QueueName: user-events-dlq
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/"

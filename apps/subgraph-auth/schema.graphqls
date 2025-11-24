@@ -1,0 +1,26 @@
+type Query {
+  health: String
+}
+
+type Mutation {
+  inviteUser(email: String!, role: String!): TokenResponse
+  validateInvite(token: String!): String
+  registerUser(email: String!, password: String!, role: String!, tenantId: String!, navigatorAdminId: String!): String
+  sendOtp(email: String!, password: String!): SessionResponse
+  verifyOtp(email: String!, otp: String!, session: String!): AuthResponse
+  loginUser(email: String!, password: String!): SessionResponse
+}
+
+type TokenResponse {
+  token: String
+}
+
+type SessionResponse {
+  session: String
+}
+
+type AuthResponse {
+  accessToken: String
+  idToken: String
+  refreshToken: String
+}

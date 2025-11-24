@@ -1,0 +1,10 @@
+federation_version: 2
+subgraphs:
+  patients:
+    routing_url: http://localhost:4566/restapis/{ApiGatewayId}/prod/_user_request_/patients
+    schema:
+      file: ../subgraph-patient/schema.graphqls
+  screenings:
+    routing_url: http://localhost:4566/restapis/{ApiGatewayId}/prod/_user_request_/screenings
+    schema:
+      file: ../subgraph-screening/schema.graphqls

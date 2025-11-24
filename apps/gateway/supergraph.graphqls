@@ -1,0 +1,38 @@
+# This is a placeholder for a federated supergraph.
+# In a real Apollo Federation setup, this file would be generated
+# by composing the schemas of the subgraphs.
+
+type Query {
+  patient(id: ID!): Patient
+  patients: [Patient]
+  screening(id: ID!): Screening
+  screenings: [Screening]
+}
+
+type Mutation {
+  createPatient(name: String!): Patient
+  submitScreening(patientId: ID!, answers: [String!]!): Screening
+}
+
+type Patient {
+  id: ID!
+  name: String!
+  screenings: [Screening]
+}
+
+type Screening {
+  id: ID!
+  patient: Patient
+  answers: [String!]!
+  score: Int
+}
+
+extend type Patient @key(fields: "id") {
+  id: ID! @external
+  screenings: [Screening] @requires(fields: "id")
+}
+
+extend type Screening @key(fields: "id") {
+  id: ID! @external
+  patient: Patient @requires(fields: "patientId")
+}
