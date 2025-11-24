@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"log"
 )
 
 func main() {
 	// Migrate write model
-			"file://scripts/migrate",
+	m, err := migrate.New(
+		"file://scripts/migrate",
 		"postgres://postgres:postgres@localhost:5434/write_model?sslmode=disable")
 	if err != nil {
 		log.Fatal(err)

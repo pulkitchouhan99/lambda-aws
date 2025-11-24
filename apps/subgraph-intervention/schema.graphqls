@@ -1,0 +1,156 @@
+type Query {
+  health: String
+  intervention(id: ID!): Intervention
+  interventions(filters: InterventionFilters): InterventionList!
+  barrierCounts(filters: BarrierFilters): BarrierResponse!
+}
+
+type Mutation {
+  createInterventions(input: CreateInterventionsInput!): CreateInterventionsResponse!
+  updateIntervention(id: ID!, updates: UpdateInterventionInput!): MessageResponse!
+  completeIntervention(id: ID!, notes: String): MessageResponse!
+  cancelIntervention(id: ID!, reason: String): MessageResponse!
+}
+
+enum InterventionType {
+  financial_counselor
+  social_work
+  registered_dietitian
+  spiritual_care
+  genetic_counselor
+  rehabilitation
+  clinical_trial
+  translation_services
+  palliative_care
+  hospice
+  survivorship
+  community_resource
+  coordination_of_care
+  physician_office_staff
+  other
+}
+
+enum InterventionStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+type Intervention {
+  id: ID!
+  tenantId: String!
+  patientId: String!
+  screeningId: String!
+  type: InterventionType!
+  title: String!
+  description: String
+  status: InterventionStatus!
+  priority: String!
+  createdBy: String!
+  assignedTo: String
+  assignedTeam: String
+  dueAt: String
+  completedAt: String
+  linkedTaskId: String
+  referralReasons: [String!]
+  problems: [String!]
+  notes: String
+  createdAt: String!
+  updatedAt: String!
+  user: User
+}
+
+type User {
+  id: ID!
+  tenantId: String!
+  email: String!
+  username: String!
+  role: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+input InterventionFilters {
+  status: InterventionStatus
+  type: InterventionType
+  assignedTeam: String
+  patientId: String
+  screeningId: String
+  screeningIds: [String!]
+  createdBy: String
+  createdByIds: [String!]
+}
+
+input BarrierFilters {
+  year: String
+  disease: String
+  type: String
+  month: String
+  createdBy: String
+  createdByIds: [String!]
+}
+
+input CreateInterventionsInput {
+  patientId: String!
+  screeningId: String!
+  items: [InterventionItemInput!]!
+  notifyPeople: [String!]
+  createdFrom: String
+}
+
+input InterventionItemInput {
+  type: InterventionType!
+  title: String!
+  scheduleInDay: String
+  dueInDay: String
+  referralReasons: [String!]
+  problems: [String!]
+  assignedTo: String
+  assignedTeam: String
+  priority: String
+  description: String
+}
+
+input UpdateInterventionInput {
+  assignedTo: String
+  assignedTeam: String
+  priority: String
+  notes: String
+  problems: [String!]
+}
+
+type InterventionList {
+  interventions: [Intervention!]!
+  total: Int!
+}
+
+type CreateInterventionsResponse {
+  interventionIds: [String!]!
+  createdTasks: [CreatedTask!]!
+}
+
+type CreatedTask {
+  taskId: String!
+  assigneeRole: String!
+}
+
+type BarrierResponse {
+  chartData: [BarrierCount!]!
+  subtypeData: [BarrierSubtype!]!
+}
+
+type BarrierCount {
+  month: String!
+  problemName: String!
+  barrierCount: Float!
+}
+
+type BarrierSubtype {
+  subType: String!
+  barrierCount: Int!
+}
+
+type MessageResponse {
+  message: String!
+}

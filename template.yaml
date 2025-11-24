@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   Backend stack
@@ -140,6 +140,55 @@ Resources:
             Method: post
             ApiId: !Ref ApiGateway
 
+  # Intervention Lambdas
+  InterventionCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/interventionCreate/
+      Handler: main
+      Environment:
+        Variables:
+          DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /interventions
+            Method: post
+            ApiId: !Ref ApiGateway
+
+  InterventionListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/interventionList/
+      Handler: main
+      Environment:
+        Variables:
+          DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /interventions
+            Method: get
+            ApiId: !Ref ApiGateway
+
+  InterventionUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cmd/interventionUpdate/
+      Handler: main
+      Environment:
+        Variables:
+          DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /interventions/{id}
+            Method: patch
+            ApiId: !Ref ApiGateway
+
   # Cognito Triggers
   CognitoCreateAuthChallengeFunction:
     Type: AWS::Serverless::Function
@@ -169,26 +218,26 @@ Resources:
   UserEventWorkerFunction:
     Type: AWS::Serverless::Function
     Properties:
-        CodeUri: workers/userEventWorker/
-        Handler: main
-        Events:
-            SqsEvent:
-                Type: SQS
-                Properties:
-                    Queue: !GetAtt UserEventsQueue.Arn
-                    BatchSize: 10
+      CodeUri: workers/userEventWorker/
+      Handler: main
+      Events:
+        SqsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt UserEventsQueue.Arn
+            BatchSize: 10
 
   UserEventsQueue:
     Type: AWS::SQS::Queue
     Properties:
-        QueueName: user-events
-        RedrivePolicy:
-            deadLetterTargetArn: !GetAtt UserEventsDlq.Arn
-            maxReceiveCount: 5
+      QueueName: user-events
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt UserEventsDlq.Arn
+        maxReceiveCount: 5
   UserEventsDlq:
     Type: AWS::SQS::Queue
     Properties:
-        QueueName: user-events-dlq
+      QueueName: user-events-dlq
 
 Outputs:
   ApiUrl:

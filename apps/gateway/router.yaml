@@ -8,3 +8,11 @@ subgraphs:
     routing_url: http://localhost:4566/restapis/{ApiGatewayId}/prod/_user_request_/screenings
     schema:
       file: ../subgraph-screening/schema.graphqls
+  auth:
+    routing_url: http://localhost:8081/query
+    schema:
+      file: ../subgraph-auth/schema.graphqls
+  interventions:
+    routing_url: http://localhost:8082/query
+    schema:
+      file: ../subgraph-intervention/schema.graphqls
