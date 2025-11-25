@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.1
 	github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider v1.57.14
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.42.5
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.16
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.19.0

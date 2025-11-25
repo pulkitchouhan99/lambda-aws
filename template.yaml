@@ -140,7 +140,7 @@ Resources:
             Method: post
             ApiId: !Ref ApiGateway
 
-  # Intervention Lambdas
+  # Intervention Command Lambdas (Write Operations)
   InterventionCreateFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -148,6 +148,8 @@ Resources:
       Handler: main
       Environment:
         Variables:
+          WRITE_DB_HOST: postgres_write
+          KINESIS_STREAM_NAME: intervention-events
           DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
       Events:
         ApiEvent:
@@ -157,14 +159,35 @@ Resources:
             Method: post
             ApiId: !Ref ApiGateway
 
-  InterventionListFunction:
+  InterventionUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: cmd/interventionList/
+      CodeUri: cmd/interventionUpdate/
       Handler: main
       Environment:
         Variables:
+          WRITE_DB_HOST: postgres_write
+          KINESIS_STREAM_NAME: intervention-events
           DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /interventions/{id}
+            Method: patch
+            ApiId: !Ref ApiGateway
+
+  # Intervention Query Lambdas (Read Operations)
+  InterventionListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: query/interventionList/
+      Handler: main
+      Environment:
+        Variables:
+          READ_DB_HOST: postgres_read
+          READ_DB_PORT: 5432
+          READ_DB_NAME: read_model
       Events:
         ApiEvent:
           Type: HttpApi
@@ -173,20 +196,22 @@ Resources:
             Method: get
             ApiId: !Ref ApiGateway
 
-  InterventionUpdateFunction:
+  GetInterventionFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: cmd/interventionUpdate/
+      CodeUri: query/getIntervention/
       Handler: main
       Environment:
         Variables:
-          DATABASE_URL: !Sub "host=${WRITE_DB_HOST} user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
+          READ_DB_HOST: postgres_read
+          READ_DB_PORT: 5432
+          READ_DB_NAME: read_model
       Events:
         ApiEvent:
           Type: HttpApi
           Properties:
             Path: /interventions/{id}
-            Method: patch
+            Method: get
             ApiId: !Ref ApiGateway
 
   # Cognito Triggers

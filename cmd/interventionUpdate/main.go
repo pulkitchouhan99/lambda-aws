@@ -7,9 +7,11 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	internalevents "github.com/lambda/internal/events"
 	"github.com/lambda/internal/repository"
 	"github.com/lambda/internal/service"
 )
@@ -20,7 +22,6 @@ var (
 )
 
 func init() {
-	// Initialize database connection once during cold start
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		dsn = "host=localhost user=postgres password=postgres dbname=write_model port=5432 sslmode=disable"
@@ -32,19 +33,24 @@ func init() {
 		panic("failed to connect to database: " + err.Error())
 	}
 
-	// Initialize repositories and services
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		panic("failed to load AWS config: " + err.Error())
+	}
+
+	streamName := getEnv("KINESIS_STREAM_NAME", "intervention-events")
+	eventPublisher := internalevents.NewKinesisEventPublisher(cfg, streamName)
+
 	interventionRepo := repository.NewInterventionRepository(db)
-	interventionService = service.NewInterventionService(interventionRepo)
+	interventionService = service.NewInterventionService(interventionRepo, eventPublisher)
 }
 
 func HandleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// Get tenant ID from headers
 	tenantID := request.Headers["X-Tenant-ID"]
 	if tenantID == "" {
 		tenantID = "default-tenant"
 	}
 
-	// Get intervention ID from path parameters
 	interventionID := request.PathParameters["id"]
 	if interventionID == "" {
 		return events.APIGatewayProxyResponse{
@@ -76,6 +82,13 @@ func HandleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 			"Content-Type": "application/json",
 		},
 	}, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func main() {

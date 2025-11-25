@@ -7,17 +7,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lambda/internal/domain"
+	"github.com/lambda/internal/events"
 	"github.com/lambda/internal/repository"
 	"github.com/lib/pq"
 )
 
 type InterventionService struct {
-	repo *repository.InterventionRepository
+	repo      *repository.InterventionRepository
+	publisher events.EventPublisher
 }
 
-func NewInterventionService(repo *repository.InterventionRepository) *InterventionService {
+func NewInterventionService(repo *repository.InterventionRepository, publisher events.EventPublisher) *InterventionService {
 	return &InterventionService{
-		repo: repo,
+		repo:      repo,
+		publisher: publisher,
 	}
 }
 
@@ -88,12 +91,35 @@ func (s *InterventionService) CreateInterventions(ctx context.Context, tenantID,
 
 		response.InterventionIDs = append(response.InterventionIDs, intervention.ID)
 
-		// Mock task creation
 		assigneeRole := s.getAssigneeRoleForInterventionType(item.Type)
 		response.CreatedTasks = append(response.CreatedTasks, CreatedTask{
 			TaskID:       "",
 			AssigneeRole: assigneeRole,
 		})
+
+		if s.publisher != nil {
+			event := events.NewInterventionCreatedEvent(&events.InterventionCreatedEvent{
+				InterventionID:  intervention.ID,
+				TenantID:        intervention.TenantID,
+				PatientID:       intervention.PatientID,
+				ScreeningID:     intervention.ScreeningID,
+				Type:            intervention.Type,
+				Title:           intervention.Title,
+				Description:     intervention.Description,
+				Status:          intervention.Status,
+				Priority:        intervention.Priority,
+				CreatedBy:       intervention.CreatedBy,
+				AssignedTo:      intervention.AssignedTo,
+				AssignedTeam:    intervention.AssignedTeam,
+				DueAt:           intervention.DueAt,
+				ReferralReasons: intervention.ReferralReasons,
+				Problems:        intervention.Problems,
+				CreatedAt:       intervention.CreatedAt,
+			})
+			if err := s.publisher.Publish(ctx, event); err != nil {
+				return nil, fmt.Errorf("failed to publish intervention created event: %w", err)
+			}
+		}
 	}
 
 	return response, nil
@@ -135,7 +161,23 @@ func (s *InterventionService) UpdateIntervention(ctx context.Context, tenantID s
 		intervention.Problems = pq.StringArray(problemsStr)
 	}
 
-	return s.repo.Update(ctx, intervention)
+	if err := s.repo.Update(ctx, intervention); err != nil {
+		return err
+	}
+
+	if s.publisher != nil {
+		event := events.NewInterventionUpdatedEvent(&events.InterventionUpdatedEvent{
+			InterventionID: interventionID,
+			TenantID:       tenantID,
+			UpdatedFields:  updates,
+			UpdatedAt:      time.Now().UTC(),
+		})
+		if err := s.publisher.Publish(ctx, event); err != nil {
+			return fmt.Errorf("failed to publish intervention updated event: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *InterventionService) CompleteIntervention(ctx context.Context, tenantID string, interventionID string, notes string) error {
@@ -151,7 +193,27 @@ func (s *InterventionService) CompleteIntervention(ctx context.Context, tenantID
 		intervention.Notes = &notes
 	}
 
-	return s.repo.Update(ctx, intervention)
+	if err := s.repo.Update(ctx, intervention); err != nil {
+		return err
+	}
+
+	if s.publisher != nil {
+		var notesPtr *string
+		if notes != "" {
+			notesPtr = &notes
+		}
+		event := events.NewInterventionCompletedEvent(&events.InterventionCompletedEvent{
+			InterventionID: interventionID,
+			TenantID:       tenantID,
+			CompletedAt:    now,
+			Notes:          notesPtr,
+		})
+		if err := s.publisher.Publish(ctx, event); err != nil {
+			return fmt.Errorf("failed to publish intervention completed event: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *InterventionService) CancelIntervention(ctx context.Context, tenantID string, interventionID string, reason string) error {
@@ -165,7 +227,27 @@ func (s *InterventionService) CancelIntervention(ctx context.Context, tenantID s
 		intervention.Notes = &reason
 	}
 
-	return s.repo.Update(ctx, intervention)
+	if err := s.repo.Update(ctx, intervention); err != nil {
+		return err
+	}
+
+	if s.publisher != nil {
+		var reasonPtr *string
+		if reason != "" {
+			reasonPtr = &reason
+		}
+		event := events.NewInterventionCancelledEvent(&events.InterventionCancelledEvent{
+			InterventionID: interventionID,
+			TenantID:       tenantID,
+			CancelledAt:    time.Now().UTC(),
+			Reason:         reasonPtr,
+		})
+		if err := s.publisher.Publish(ctx, event); err != nil {
+			return fmt.Errorf("failed to publish intervention cancelled event: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *InterventionService) GetBarrierCounts(ctx context.Context, tenantID string, filters map[string]interface{}) (*domain.BarrierResponse, error) {

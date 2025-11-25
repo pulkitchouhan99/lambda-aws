@@ -15,6 +15,7 @@ import (
 	"github.com/lambda/apps/subgraph-intervention/graph"
 	"github.com/lambda/apps/subgraph-intervention/graph/generated"
 	"github.com/lambda/internal/db"
+	"github.com/lambda/internal/events"
 	"github.com/lambda/internal/repository"
 	"github.com/lambda/internal/service"
 )
@@ -35,9 +36,12 @@ func main() {
 	}
 	defer dbConfig.Close()
 
+	streamName := getEnv("KINESIS_STREAM_NAME", "intervention-events")
+	eventPublisher := events.NewKinesisEventPublisher(dbConfig.AWS, streamName)
+
 	interventionRepo := repository.NewInterventionRepository(dbConfig.WriteDB)
 
-	interventionService := service.NewInterventionService(interventionRepo)
+	interventionService := service.NewInterventionService(interventionRepo, eventPublisher)
 
 	resolver := &graph.Resolver{
 		InterventionService: interventionService,
@@ -74,4 +78,11 @@ func main() {
 	}
 
 	log.Println("server exited gracefully")
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

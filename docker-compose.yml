@@ -127,6 +127,7 @@ services:
       - AWS_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
+      - KINESIS_STREAM_NAME=intervention-events
       - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
       - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
       - JWT_SECRET=${JWT_SECRET:-local-secret-key}
@@ -137,6 +138,40 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  kinesis-to-sqs-worker:
+    build:
+      context: .
+      dockerfile: workers/kinesisToSqs/Dockerfile
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - LOCALSTACK_URL=http://localstack:4566
+      - KINESIS_STREAM_NAME=intervention-events
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/intervention-events
+    depends_on:
+      - localstack
+
+  intervention-worker:
+    build:
+      context: .
+      dockerfile: workers/interventionEventWorker/Dockerfile
+    environment:
+      - READ_DB_HOST=postgres_read
+      - READ_DB_PORT=5432
+      - READ_DB_USER=postgres
+      - READ_DB_PASSWORD=postgres
+      - READ_DB_NAME=read_model
+      - READ_DB_SSLMODE=disable
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - LOCALSTACK_URL=http://localstack:4566
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/intervention-events
+    depends_on:
+      - postgres_read
+      - localstack
 
 volumes:
   postgres_write_data:
